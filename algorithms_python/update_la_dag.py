@@ -186,6 +186,8 @@ def update_la_dag(
         "JD": JD,
         "acc_rate": acc_rate,
         "thinned_k_size": thinned_k_size,
+        "log_q_forward": prob_prop,
+        "log_q_reverse": rev_prob_prop,
     }
 
 __all__ = ["update_la_dag"]

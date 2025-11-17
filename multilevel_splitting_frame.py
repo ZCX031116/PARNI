@@ -33,6 +33,11 @@ from trust.utils.bge import BGe
 from adjustText import adjust_text
 import json
 from build_H import build_H
+from algorithms_python.parni_step import (
+    parni_prepare_context,
+    parni_make_LA_from_G,
+    parni_propose_one_step,
+)
 
 from dataclasses import dataclass
 
@@ -495,12 +500,11 @@ class Multilevel:
         p_structure = 0.5
         if np.random.rand() < p_structure:
             current_adj = LA.curr.astype(int)
-            # TODO: Propose new structure via one step PARNI
-            # 1. Propose new structure via one step PARNI
-            # 2. one step PARNI should return back the the proposed DAG, forward and reverse log proposal probabilities
-            # new_adj    = 
-            # log_qG_fwd = 
-            # log_qG_rev = 
+            parni_res = parni_propose_one_step(LA, self.parni_ctx, rng=self.rng)
+            LA_prop = parni_res["LA_prop"]
+            new_adj = LA_prop.curr.astype(int)
+            log_qG_fwd = parni_res["log_q_forward"]
+            log_qG_rev = parni_res["log_q_reverse"]
             A, R, K = Multilevel._edge_delta(current_adj, new_adj)
             new_w = np.copy(weight_matrix)
             log_qw_fwd = 0.0
@@ -524,14 +528,14 @@ class Multilevel:
             edges = list(zip(*np.where(new_adj == 1)))
             new_w = np.copy(weight_matrix)
             LA_prop = LA
-            if len(edges) == 0: 
+            if len(edges) == 0:
                 return new_adj, new_w, 0.0, 0.0, LA_prop, "weight"
             new_adj, new_w, log_qk_fwd, log_qk_rev = Multilevel.propose_new_weights(
-                current_adj, new_w, edges=edges, step_size=step_size, rng=rng
+                current_adj, new_w, edges=edges, step_size=step_size, rng=self.rng
             )
             logp_prop = log_qk_fwd
             logp_cur = log_qk_rev
-            
+
             return new_adj, new_w, logp_prop, logp_cur, LA_prop, "weight"
 
     def propose_new_state_Joint_Structure_MCMC(self, adjacency_matrix, weight_matrix, p_structure=0.5, step_size=1):
@@ -556,12 +560,11 @@ class Multilevel:
             var = float(sigma) * float(sigma)
             return -0.5*np.log(2.0*np.pi*var) - 0.5*((x - mu)*(x - mu))/var
         current_adj = LA.curr.astype(int)
-        # TODO: Propose new structure via one step PARNI
-        # 1. Propose new structure via one step PARNI
-        # 2. one step PARNI should return back the the proposed DAG, forward and reverse log proposal probabilities
-        # new_adj    = 
-        # log_qG_fwd = 
-        # log_qG_rev = 
+        parni_res = parni_propose_one_step(LA, self.parni_ctx, rng=self.rng)
+        LA_prop = parni_res["LA_prop"]
+        new_adj = LA_prop.curr.astype(int)
+        log_qG_fwd = parni_res["log_q_forward"]
+        log_qG_rev = parni_res["log_q_reverse"]
         A, R, K = Multilevel._edge_delta(current_adj, new_adj)
         new_w = np.copy(weight_matrix)
         log_qw_fwd = 0.0
@@ -580,7 +583,7 @@ class Multilevel:
         m_edges = len(K_list)
         if m_edges > 0:
             new_adj, new_w, log_qk_fwd, log_qk_rev = Multilevel.propose_new_weights(
-                new_adj, new_w, edges=K_list, step_size=step_size, rng=rng
+                new_adj, new_w, edges=K_list, step_size=step_size, rng=self.rng
             )
         else:
             log_qk_fwd = log_qk_rev = 0.0
